@@ -1,163 +1,320 @@
-# Financial Planner App Core Features
+# Financial Planner Product Spec
 
-## Product Goal
+## Product Summary
 
-Build a React and Next.js based financial planning app that helps users understand, organize, and improve their financial picture with minimal friction. The app should support both hands-on budgeting and AI-assisted data entry from receipts, statements, and related financial documents.
+Build a web-first financial planning app that makes budgeting simpler for everyday users through a clean dashboard, persistent saved accounts, AI-assisted statement import, and a friendly chatbot that gives coaching-style financial guidance based on the user's saved data.
 
-## Core Product Principles
+The first version should focus on clarity and ease of use instead of trying to be a full bank-sync platform. Users should be able to manage their budget manually, import statement data with AI help, review everything before saving, and ask natural-language questions about their finances.
+
+## Target User
+
+The first version is for anyone who wants to simplify the process of creating and maintaining a budget.
+
+Key assumptions about the initial user:
+
+- They want a clear picture of income, expenses, and spending categories.
+- They may not want to connect their live bank accounts.
+- They want help importing financial data without doing all the manual typing.
+- They want practical budgeting advice without judgment.
+- They need a simple month-to-month budgeting workflow.
+
+## Product Principles
 
 - Prioritize ease of use over feature overload.
-- Make the most important financial signals visible at a glance.
-- Reduce manual entry wherever possible.
-- Let users review and correct AI-generated results before data is saved.
-- Keep layouts clean, readable, and useful on both desktop and mobile.
+- Keep the dashboard readable and useful at a glance.
+- Require review before saving AI-extracted financial data.
+- Support manual control even when AI suggestions exist.
+- Use AI to reduce friction, not remove user trust or transparency.
+- Give helpful coaching, not overly confident financial certainty.
 
-## Primary User Jobs
+## MVP Scope
 
-- Track income and expenses in one place.
-- Understand where money is going through charts, summaries, and trends.
-- Import financial activity from receipts, statements, and document scans.
-- Automatically categorize transactions into useful groups.
-- Review financial health over time instead of only seeing isolated transactions.
-- Edit, correct, and organize transactions without complexity.
+### Included in MVP
 
-## Core Features
+- User account creation and login
+- Persistent saved user data
+- Unified transaction list with filters
+- Manual income and expense entry
+- Total monthly budget tracking
+- Optional category-level monthly budget tracking
+- Dashboard with multiple charts and summary metrics
+- AI import for bank statements and credit card statements
+- Review and approval workflow for imported transactions
+- Editing of imported transaction details before save
+- Basic duplicate detection for imported transactions
+- Custom categories and category renaming
+- Ability to mark transactions as recurring
+- Chatbot that answers financial questions based on saved user data
 
-### 1. Dashboard Overview
+### Not Included in MVP
 
-- Show a clean dashboard with top-level financial metrics.
-- Display total income, total expenses, current balance, and savings rate.
-- Highlight budget progress against a user-defined target.
-- Surface key financial insights such as largest spending category or unusual expenses.
-- Support responsive layouts for desktop, tablet, and mobile.
+- Live bank account connections
+- Automatic syncing from financial institutions
+- Investment tracking
+- Debt payoff planning tools beyond chatbot guidance
+- Goal tracking as a core feature
+- Stored chatbot conversation history
+- Stored uploaded statement files after processing
+- Proactive chatbot alerts
+- Chatbot actions that directly change user data
 
-### 2. Transaction Management
+## Core MVP Features
 
-- Allow users to manually add income and expense transactions.
-- Support key fields:
-  - Description
-  - Amount
-  - Date
-  - Type
-  - Category
-  - Source or account
-  - Notes
-- Let users edit or delete transactions easily.
-- Display transactions in a clear grid or table with strong scanability.
-- Support sorting and filtering in later iterations.
+### 1. Authentication and User Accounts
 
-### 3. Budget Planning
+- Users must be able to create accounts and log in.
+- User financial data must persist between sessions.
+- Each user should have access only to their own saved data.
+- The product should be designed for secure account-based storage rather than browser-only local storage.
 
-- Let users set a target spending budget.
-- Show how much of the target budget has already been used.
-- Highlight whether the user is on track, nearing limits, or over budget.
-- Provide quick visual indicators for budget health.
-- Prepare the system for future category-level budget targets.
+### 2. Dashboard
 
-### 4. Charts and Visual Reporting
+The dashboard should be easy to scan and should surface the most important budget information first.
 
-- Include well-laid out charts for financial trends and category breakdowns.
-- Show monthly income versus expenses over time.
-- Show spending by category in a chart that is easy to read.
-- Make charts readable in both light and dark themes.
-- Ensure charts complement the data table instead of replacing it.
+The default dashboard should show:
 
-### 5. AI Receipt and Statement Intake
+- Total income
+- Total expenses
+- Remaining monthly budget
+- Top spending categories
+- Monthly trend chart
+- Recent transactions
 
-- Allow users to upload or paste extracted text from receipts, statements, and similar financial documents.
-- Parse candidate transaction rows from imported content.
-- Detect amounts, dates, merchants, and likely transaction types.
-- Auto-categorize entries into groups such as:
-  - Groceries
-  - Eating Out
-  - Housing
-  - Utilities
-  - Transportation
-  - Healthcare
-  - Entertainment
-  - Shopping
-  - Travel
-  - Salary
-  - Freelance
-- Show a review step before importing parsed transactions.
-- Let users remove or correct parsed entries before save.
+The dashboard should also support:
 
-### 6. AI Categorization and Suggestions
+- Category visibility through charts
+- Quick understanding of budget health
+- Clean layout on web, with future mobile adaptation in mind
 
-- Use rules and eventually model-based classification to suggest categories.
-- Provide confidence indicators for AI-generated results.
-- Allow users to override categories manually.
-- Build toward learning from repeated corrections in later versions.
-- Surface helpful suggestions rather than forcing automation.
+### 3. Transactions
 
-### 7. Data Persistence
+Transactions should exist in one unified list with filters rather than separate income and expense screens.
 
-- Persist user data so it is not lost between sessions.
-- Use local storage for early versions and prototypes.
-- Plan for migration to database-backed persistence in a production Next.js version.
-- Prepare for account-based storage in future iterations.
+Users should be able to:
 
-### 8. Usability and UX
+- Add manual income entries
+- Add manual expense entries
+- Edit transactions
+- Delete transactions
+- Filter transactions
+- Mark transactions as recurring
 
-- Keep forms simple and reduce unnecessary clicks.
-- Use clear labels and readable spacing.
-- Avoid cluttered dashboards.
-- Make import, review, and correction flows feel safe and understandable.
-- Provide empty states that teach users what to do next.
-- Keep important actions visible and logically grouped.
+Transaction fields should include:
 
-### 9. Future Next.js and API Integration
+- Description
+- Amount
+- Date
+- Type
+- Category
+- Source
+- Notes
 
-- Migrate the current UI into a true Next.js app structure.
-- Add server-side API routes for document processing and AI extraction.
-- Connect to OCR or multimodal AI services for image-based receipt and statement parsing.
-- Add authentication and protected user data storage.
-- Support real file upload workflows instead of text-only prototypes.
+### 4. Budgets
 
-## Desired AI Workflow
+The budgeting model for MVP should be simple month-to-month budgeting.
 
-1. User uploads a receipt image, bank statement image, or PDF.
-2. OCR or multimodal extraction reads the contents.
-3. The system identifies possible transactions.
-4. The system labels each item as income or expense.
-5. The system suggests a category for each item.
-6. The user reviews and edits results.
-7. Approved transactions are added to the main ledger.
+Users should be able to:
 
-## Suggested Future Milestones
+- Set a total monthly budget
+- Set optional category-level monthly budgets
+- Track usage against both total and category budgets
+- See whether they are on track or overspending
 
-### Milestone 1
+Budget creation should be manual in version one.
 
-- Polished dashboard
-- Manual transaction management
-- Budget target tracking
-- Category and monthly charts
+Future versions may include:
 
-### Milestone 2
+- AI-suggested starting budgets
+- Smarter budget recommendations based on historical spending
 
-- AI text parsing for receipts and statements
-- Review and approval workflow
-- Better transaction filtering and sorting
+### 5. Categories
 
-### Milestone 3
+Categories are central to the user experience and AI import workflow.
 
-- True Next.js migration
-- API-backed AI extraction
-- Persistent database storage
-- User authentication
+Users should be able to:
 
-### Milestone 4
+- Use default categories
+- Create their own custom categories
+- Rename categories
+- Edit AI-suggested category assignments
 
-- Real image and PDF upload
-- OCR integration
-- Personalized category learning
-- Recurring income and recurring expense handling
+The system should support clear budgeting and reporting categories such as:
 
-## Open Product Decisions
+- Groceries
+- Eating Out
+- Housing
+- Utilities
+- Transportation
+- Healthcare
+- Entertainment
+- Shopping
+- Travel
+- Salary
+- Freelance
+- Other
 
-- Which authentication provider to use in the production version.
-- Which database to use for long-term persistence.
-- Which OCR or multimodal AI provider to use for document understanding.
-- Whether to support household-level shared budgets.
-- Whether to include account linking to banks in a later phase.
+### 6. AI Statement Import
 
+This is a must-have feature for the app.
+
+The MVP AI import flow should focus on:
+
+- Bank statements
+- Credit card statements
+
+The AI import tool should:
+
+- Accept statement content for processing
+- Extract transaction line items only
+- Identify likely income vs expense
+- Suggest categories
+- Flag likely duplicates using basic duplicate detection
+- Present all extracted entries for user review before saving
+
+Users must be able to:
+
+- Review all extracted items
+- Edit names, descriptions, categories, dates, and amounts
+- Remove unwanted extracted items
+- Approve items individually
+- Bulk approve groups of items
+
+Document handling rules for MVP:
+
+- Process uploaded documents or extracted content
+- Do not keep the uploaded source documents after processing
+- Save only the approved transaction data and any needed import metadata
+
+### 7. Duplicate Detection
+
+Imported transactions should be checked for possible duplicates before save.
+
+MVP duplicate detection should be basic and reliable rather than overly aggressive.
+
+Recommended first-pass duplicate logic:
+
+- Match exact or near-exact date
+- Match same amount
+- Match same or very similar description
+
+The goal is to help users avoid duplicate imports without silently deleting data.
+
+### 8. Charts and Reporting
+
+The app should provide clear visual reporting to help users understand their spending without digging through raw tables.
+
+MVP reporting should include:
+
+- Income vs expense trend over time
+- Spending by category
+- Budget progress
+- Recent transaction visibility
+
+Reporting should help answer questions like:
+
+- Where is my money going?
+- Which categories are growing the fastest?
+- Am I staying within my monthly budget?
+
+### 9. Chatbot Assistant
+
+This is also a must-have feature for the app.
+
+The chatbot should be:
+
+- Friendly
+- Coaching-oriented
+- Advice-only
+- Data-aware
+- Non-judgmental
+
+The chatbot should only respond when the user asks. It should not proactively interrupt the user in MVP.
+
+The chatbot should answer questions such as:
+
+- How much did I spend this month?
+- What category am I overspending in?
+- How can I lower my spending?
+- What did I spend on eating out last month?
+- What patterns do you see in my expenses?
+- Do I seem on track with my budget?
+- What categories are growing too fast?
+- What changes would help me save more?
+- How stable does my cash flow look?
+
+The chatbot should:
+
+- Use saved transactions, budgets, categories, and recurring markers
+- Answer across time periods such as this month, last month, last three months, and year to date
+- Offer recommendations framed as guidance rather than certainty
+- Be able to discuss user-provided goals conversationally, even though formal goal tracking is phase 2
+
+The chatbot should not:
+
+- Automatically modify saved data
+- Auto-create budgets or transactions without approval
+- Save chat history in MVP
+- Pretend to give guaranteed financial outcomes
+
+### 10. Data Persistence
+
+The app must save user information.
+
+Save in MVP:
+
+- User account data
+- Transactions
+- Categories
+- Budgets
+- Recurring markers
+- Imported transaction results
+- Import metadata needed for duplicate checking
+
+Do not save in MVP:
+
+- Uploaded statement source files after processing
+- Chatbot conversation history
+
+## Recommended MVP Screens
+
+The MVP should include these primary screens:
+
+- Dashboard
+- Transactions
+- Import and Review
+- Chat Assistant
+- Budget Setup
+
+## AI Workflow
+
+1. User uploads a bank statement or credit card statement.
+2. The system processes the file and extracts transaction line items.
+3. The system suggests transaction types and categories.
+4. The system checks for likely duplicates.
+5. The user reviews every extracted item.
+6. The user edits or removes any incorrect entries.
+7. The user approves entries individually or in bulk.
+8. Approved transactions are saved to the account and reflected in budgets, charts, and chatbot answers.
+
+## Phase 2 Features
+
+These are important, but intentionally deferred until after MVP:
+
+- Goal tracking and goal progress
+- AI-suggested budgets
+- More advanced duplicate detection
+- Deeper recurring transaction automation
+- Investment tracking
+- Debt payoff planning tools
+- Proactive insights and alerts
+- Stored chat history
+- Mobile-first native experience
+
+## Open Technical Decisions
+
+- Authentication provider
+- Database and ORM selection
+- AI and OCR provider for statement extraction
+- Storage and deletion workflow for temporary uploaded files
+- Exact duplicate detection rules
+- Web-to-mobile expansion strategy after MVP

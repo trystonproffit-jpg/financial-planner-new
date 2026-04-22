@@ -8,6 +8,10 @@ function TransactionsTable({ transactions, onEdit, onDelete }) {
           <h2 className="panel-title">Transaction grid</h2>
           <p className="panel-subtitle">Review, edit, or delete entries from one sortable-style list.</p>
         </div>
+        <div className="table-header-stat">
+          <span className="field-label">Rows</span>
+          <strong>{transactions.length}</strong>
+        </div>
       </div>
 
       <div className="transaction-table-wrap">
@@ -18,6 +22,7 @@ function TransactionsTable({ transactions, onEdit, onDelete }) {
               <th>Date</th>
               <th>Category</th>
               <th>Source</th>
+              <th>Recurring</th>
               <th>Type</th>
               <th>Amount</th>
               <th />
@@ -27,12 +32,19 @@ function TransactionsTable({ transactions, onEdit, onDelete }) {
             {transactions.map((entry) => (
               <tr key={entry.id}>
                 <td>
-                  <div className="font-medium text-slate-900 dark:text-white">{entry.description}</div>
+                  <div className="transaction-primary text-slate-900 dark:text-white">{entry.description}</div>
                   {entry.notes ? <div className="table-note">{entry.notes}</div> : null}
                 </td>
-                <td>{entry.date}</td>
-                <td>{entry.category}</td>
-                <td>{entry.source}</td>
+                <td className="table-emphasis">{entry.date}</td>
+                <td>
+                  <span className="table-pill">{entry.category}</span>
+                </td>
+                <td className="table-soft">{entry.source}</td>
+                <td>
+                  <span className={`table-pill ${entry.isRecurring ? "table-pill-recurring" : "table-pill-neutral"}`}>
+                    {entry.isRecurring ? "Recurring" : "One-time"}
+                  </span>
+                </td>
                 <td>
                   <span className={`confidence-badge ${entry.type === "income" ? "income" : "expense"}`}>
                     {entry.type}

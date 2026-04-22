@@ -27,6 +27,8 @@ export const CATEGORY_COLORS = {
   Other: "#64748b",
 };
 
+export const DEFAULT_CATEGORIES = Object.keys(CATEGORY_COLORS);
+
 export const SAMPLE_TRANSACTIONS = [
   { id: 1, description: "Biweekly payroll", amount: 3450, type: "income", category: "Salary", date: "2026-04-05", source: "ACME Corp", notes: "Primary paycheck", confidence: 1 },
   { id: 2, description: "Whole Foods Market", amount: 124.63, type: "expense", category: "Groceries", date: "2026-04-04", source: "Visa ending 2811", notes: "Weekly stock-up", confidence: 1 },
@@ -46,6 +48,7 @@ export const defaultFormState = {
   date: new Date().toISOString().slice(0, 10),
   source: "",
   notes: "",
+  isRecurring: false,
 };
 
 export const defaultImportState = {
@@ -92,11 +95,24 @@ export function buildTransaction(entry) {
     date: entry.date || new Date().toISOString().slice(0, 10),
     source: entry.source || "Manual entry",
     notes: entry.notes || "",
+    isRecurring: Boolean(entry.isRecurring),
     confidence: entry.confidence ?? 0.94,
   };
 }
 
-export function parseImportedText(rawText, documentType) {
+export function normalizeDescription(description) {
+  return description.toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+export function findDuplicateTransaction(candidate, existingTransactions) {
+  return existingTransactions.find((entry) => (
+    entry.date === candidate.date
+    && Number(entry.amount).toFixed(2) === Number(candidate.amount).toFixed(2)
+    && normalizeDescription(entry.description) === normalizeDescription(candidate.description)
+  ));
+}
+
+export function parseImportedText(rawText, documentType, sourceLabel = "AI document scan") {
   return rawText
     .split(/\r?\n/)
     .map((line) => line.trim())
@@ -133,12 +149,27 @@ export function parseImportedText(rawText, documentType) {
         amount: Math.abs(parsedAmount),
         type: detectedType,
         date: isoDate,
-        source: "AI document scan",
-        notes: "Parsed from uploaded receipt or bank statement text.",
+        source: sourceLabel,
+        notes: `Parsed from ${sourceLabel.toLowerCase()}.`,
         confidence: description ? 0.92 : 0.71,
       });
     })
     .filter(Boolean);
+}
+
+export function createImportReviewItems(entries, existingTransactions) {
+  return entries.map((entry) => {
+    const duplicateMatch = findDuplicateTransaction(entry, existingTransactions);
+    return {
+      ...entry,
+      approved: !duplicateMatch,
+      duplicate: Boolean(duplicateMatch),
+      duplicateId: duplicateMatch?.id ?? null,
+      duplicateReason: duplicateMatch
+        ? `Matches existing transaction "${duplicateMatch.description}" on ${duplicateMatch.date}.`
+        : "",
+    };
+  });
 }
 
 export function currencyFormatter(value) {

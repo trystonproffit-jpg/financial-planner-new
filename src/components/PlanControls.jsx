@@ -1,21 +1,42 @@
-import { percentFormatter } from "../lib/finance";
+import { useState } from "react";
+import { currencyFormatter, percentFormatter } from "../lib/finance";
 
 function PlanControls({
   budgetTarget,
+  categoryBudgetSummaries,
+  categoryBudgets,
+  categoryOptions,
+  customCategories,
   financials,
   formState,
   editingId,
-  onSetBudgetTarget,
+  onAddCustomCategory,
+  onCategoryBudgetChange,
   onFieldChange,
+  onRemoveCustomCategory,
+  onSetBudgetTarget,
   onSubmit,
   onResetForm,
 }) {
+  const [newCategoryName, setNewCategoryName] = useState("");
+
+  function handleAddCategory(event) {
+    event.preventDefault();
+    const normalized = newCategoryName.trim();
+    if (!normalized) {
+      return;
+    }
+
+    onAddCustomCategory(normalized);
+    setNewCategoryName("");
+  }
+
   return (
     <article className="panel">
       <div className="panel-header">
         <div>
           <h2 className="panel-title">Plan controls</h2>
-          <p className="panel-subtitle">Adjust targets and add transactions without leaving the dashboard.</p>
+          <p className="panel-subtitle">Adjust targets, manage categories, and add transactions without leaving the dashboard.</p>
         </div>
       </div>
 
@@ -91,12 +112,17 @@ function PlanControls({
 
         <label className="field">
           <span className="field-label">Category</span>
-          <input
+          <select
             className="field-input"
             value={formState.category}
             onChange={(event) => onFieldChange("category", event.target.value)}
-            placeholder="Groceries, Eating Out, Salary"
-          />
+          >
+            {categoryOptions.map((category) => (
+              <option key={category} value={category}>
+                {category}
+              </option>
+            ))}
+          </select>
         </label>
 
         <label className="field">
@@ -119,6 +145,17 @@ function PlanControls({
           />
         </label>
 
+        <label className="field sm:col-span-2">
+          <span className="checkbox-row">
+            <input
+              type="checkbox"
+              checked={formState.isRecurring}
+              onChange={(event) => onFieldChange("isRecurring", event.target.checked)}
+            />
+            <span>Mark as recurring transaction</span>
+          </span>
+        </label>
+
         <div className="sm:col-span-2 flex flex-wrap gap-3">
           <button type="submit" className="primary-button">
             {editingId ? "Update transaction" : "Add transaction"}
@@ -130,6 +167,90 @@ function PlanControls({
           ) : null}
         </div>
       </form>
+
+      <div className="section-divider" />
+
+      <div className="grid gap-6 xl:grid-cols-[0.85fr_1.15fr]">
+        <section className="grid gap-4">
+          <div>
+            <h3 className="panel-title">Custom categories</h3>
+            <p className="panel-subtitle">Create your own spending buckets and reuse them across imports and manual entries.</p>
+          </div>
+
+          <form className="flex flex-wrap gap-3" onSubmit={handleAddCategory}>
+            <input
+              className="field-input flex-1"
+              value={newCategoryName}
+              onChange={(event) => setNewCategoryName(event.target.value)}
+              placeholder="Coffee, Pets, Childcare"
+            />
+            <button type="submit" className="primary-button">
+              Add category
+            </button>
+          </form>
+
+          <div className="chip-wrap">
+            {customCategories.length ? (
+              customCategories.map((category) => (
+                <div key={category} className="category-chip">
+                  <span>{category}</span>
+                  <button type="button" className="chip-delete" onClick={() => onRemoveCustomCategory(category)}>
+                    Remove
+                  </button>
+                </div>
+              ))
+            ) : (
+              <div className="empty-state">Custom categories you add here will show up in transaction forms and budgets.</div>
+            )}
+          </div>
+        </section>
+
+        <section className="grid gap-4">
+          <div>
+            <h3 className="panel-title">Category budgets</h3>
+            <p className="panel-subtitle">Set optional monthly limits for the categories you care about most.</p>
+          </div>
+
+          <div className="budget-summary-list">
+            {categoryBudgetSummaries.length ? (
+              categoryBudgetSummaries.map((summary) => (
+                <div key={summary.category} className="budget-summary-card">
+                  <div className="budget-summary-header">
+                    <strong>{summary.category}</strong>
+                    <span className={`budget-health ${summary.status}`}>{summary.statusLabel}</span>
+                  </div>
+
+                  <label className="field">
+                    <span className="field-label">Monthly limit</span>
+                    <input
+                      className="field-input"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={categoryBudgets[summary.category] ?? ""}
+                      onChange={(event) => onCategoryBudgetChange(summary.category, event.target.value)}
+                      placeholder="Optional"
+                    />
+                  </label>
+
+                  <div className="budget-summary-meta">
+                    <span>Spent {currencyFormatter(summary.spent)}</span>
+                    <span>Budget {summary.limit ? currencyFormatter(summary.limit) : "Not set"}</span>
+                  </div>
+
+                  {summary.limit ? (
+                    <div className="progress-track compact">
+                      <div className="progress-fill" style={{ width: `${Math.min(summary.percentUsed, 100)}%` }} />
+                    </div>
+                  ) : null}
+                </div>
+              ))
+            ) : (
+              <div className="empty-state">Expense categories will show up here once you start adding or importing transactions.</div>
+            )}
+          </div>
+        </section>
+      </div>
     </article>
   );
 }
