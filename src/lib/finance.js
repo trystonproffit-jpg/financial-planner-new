@@ -57,6 +57,7 @@ export const defaultImportState = {
 04/04/2026 ACME PAYROLL +$3450.00
 04/04/2026 UBER TRIP $23.56`,
   documentType: "mixed",
+  statementSource: "auto",
 };
 
 export function inferType(text, amount) {
@@ -112,48 +113,378 @@ export function findDuplicateTransaction(candidate, existingTransactions) {
   ));
 }
 
-export function parseImportedText(rawText, documentType, sourceLabel = "AI document scan") {
-  return rawText
+function looksLikeStatementNoise(line) {
+  const lowered = line.toLowerCase();
+
+  return (
+    lowered.includes("transaction details")
+    || lowered.includes("transaction history")
+    || lowered.includes("date description")
+    || lowered.includes("description amount")
+    || lowered.includes("date transaction")
+    || lowered.includes("posted transactions")
+    || lowered.includes("deposits and additions")
+    || lowered.includes("electronic withdrawals")
+    || lowered.includes("amount balance")
+    || lowered.includes("balance forward")
+    || lowered.includes("beginning balance")
+    || lowered.includes("ending balance")
+    || lowered.includes("available balance")
+    || lowered.includes("account number")
+    || lowered.includes("page ")
+    || lowered.includes("total fees")
+    || lowered.includes("interest charged")
+    || lowered.includes("payment due")
+    || lowered.includes("new balance")
+  );
+}
+
+function normalizeImportedDate(rawDate) {
+  if (!rawDate) {
+    return new Date().toISOString().slice(0, 10);
+  }
+
+  const cleaned = rawDate.replace(/\./g, "/").trim();
+  const isoLikeMatch = cleaned.match(/^(\d{4})[/-](\d{1,2})[/-](\d{1,2})$/);
+
+  if (isoLikeMatch) {
+    const year = Number(isoLikeMatch[1]);
+    const month = Number(isoLikeMatch[2]);
+    const day = Number(isoLikeMatch[3]);
+    const parsedDate = new Date(year, month - 1, day);
+
+    if (!Number.isNaN(parsedDate.getTime())) {
+      return parsedDate.toISOString().slice(0, 10);
+    }
+  }
+
+  const compactMatch = cleaned.match(/^(\d{1,2})[/-](\d{1,2})(?:[/-](\d{2,4}))?$/);
+
+  if (compactMatch) {
+    const month = Number(compactMatch[1]);
+    const day = Number(compactMatch[2]);
+    const rawYear = compactMatch[3];
+    const year = rawYear
+      ? Number(rawYear.length === 2 ? `20${rawYear}` : rawYear)
+      : new Date().getFullYear();
+
+    const parsedDate = new Date(year, month - 1, day);
+
+    if (!Number.isNaN(parsedDate.getTime())) {
+      return parsedDate.toISOString().slice(0, 10);
+    }
+  }
+
+  const parsedDate = new Date(cleaned);
+  if (Number.isNaN(parsedDate.getTime())) {
+    return new Date().toISOString().slice(0, 10);
+  }
+
+  return parsedDate.toISOString().slice(0, 10);
+}
+
+function scoreImportedRow({ amount, dateMatch, description, parserStrategy = "generic" }) {
+  let confidence = 0.52;
+
+  if (dateMatch) {
+    confidence += 0.14;
+  }
+
+  if (amount >= 1) {
+    confidence += 0.08;
+  }
+
+  if (description.length >= 6) {
+    confidence += 0.1;
+  }
+
+  if (/[a-z]/i.test(description) && /\d/.test(description) === false) {
+    confidence += 0.08;
+  }
+
+  if (description.length >= 14) {
+    confidence += 0.06;
+  }
+
+  if (parserStrategy === "credit_card" || parserStrategy === "bank_statement") {
+    confidence += 0.06;
+  }
+
+  return Math.min(Number(confidence.toFixed(2)), 0.97);
+}
+
+function cleanImportedDescription(value) {
+  return value
+    .replace(/\b(?:pos|dbt|purchase|payment|debit|credit|withdrawal|deposit|checkcard|visa|mc)\b/gi, " ")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
+function findDateMatch(line) {
+  return line.match(/\b(\d{4}[/-]\d{1,2}[/-]\d{1,2}|\d{1,2}[/-]\d{1,2}(?:[/-]\d{2,4})?)\b/);
+}
+
+function findAmountTokens(line) {
+  return [...line.matchAll(/([+-]?\$?\d[\d,]*\.\d{2})/g)];
+}
+
+function splitDenseStatementLine(line) {
+  const datePattern = /\b(?:\d{4}[/-]\d{1,2}[/-]\d{1,2}|\d{1,2}[/-]\d{1,2}(?:[/-]\d{2,4})?)\b/g;
+  const dateMatches = [...line.matchAll(datePattern)];
+
+  if (dateMatches.length <= 1) {
+    return [line];
+  }
+
+  return dateMatches.map((match, index) => {
+    const start = match.index ?? 0;
+    const end = index + 1 < dateMatches.length ? (dateMatches[index + 1].index ?? line.length) : line.length;
+    return line.slice(start, end).trim();
+  }).filter(Boolean);
+}
+
+function buildImportCandidateLines(rawText, statementSource) {
+  const normalizedText = rawText
+    .replace(/[–—−]/g, "-")
+    .replace(/\u00A0/g, " ")
+    .replace(/[|]/g, " ")
+    .replace(/[ \t]+/g, " ")
+    .trim();
+
+  const baseLines = normalizedText
     .split(/\r?\n/)
     .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line) => {
-      const dateMatch = line.match(/(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})/);
-      const amountMatch = line.match(/([+-]?\$?\d[\d,]*\.?\d{0,2})\s*$/);
+    .filter(Boolean);
 
-      if (!amountMatch) {
-        return null;
+  const candidateLines = baseLines.flatMap((line) => {
+    if ((statementSource === "bank-statement" || statementSource === "credit-card") && findDateMatch(line)) {
+      return splitDenseStatementLine(line);
+    }
+
+    return [line];
+  });
+
+  const denseDateMatches = [...normalizedText.matchAll(/\b(?:\d{4}[/-]\d{1,2}[/-]\d{1,2}|\d{1,2}[/-]\d{1,2}(?:[/-]\d{2,4})?)\b/g)];
+
+  if (denseDateMatches.length >= 3 && candidateLines.length <= 4) {
+    return splitDenseStatementLine(normalizedText);
+  }
+
+  return candidateLines;
+}
+
+function inferStatementSource(rawText, sourceLabel = "") {
+  const combined = `${sourceLabel}\n${rawText}`.toLowerCase();
+
+  if (
+    combined.includes("credit card")
+    || combined.includes("card ending")
+    || combined.includes("minimum payment")
+    || combined.includes("payment due")
+    || combined.includes("purchases and adjustments")
+  ) {
+    return "credit-card";
+  }
+
+  if (
+    combined.includes("checking")
+    || combined.includes("chequing")
+    || combined.includes("savings")
+    || combined.includes("deposits and additions")
+    || combined.includes("electronic withdrawals")
+    || combined.includes("account summary")
+    || combined.includes("withdrawals")
+    || combined.includes("deposits")
+    || combined.includes("balance")
+  ) {
+    return "bank-statement";
+  }
+
+  return "generic";
+}
+
+function buildImportedTransaction({
+  description,
+  amount,
+  documentType,
+  dateMatch,
+  sourceLabel,
+  parserStrategy,
+}) {
+  if (!description || description.length < 3 || !Number.isFinite(amount)) {
+    return null;
+  }
+
+  const detectedType =
+    documentType === "income"
+      ? "income"
+      : documentType === "expense"
+        ? "expense"
+        : inferType(description, amount);
+
+  return buildTransaction({
+    description,
+    amount: Math.abs(amount),
+    type: detectedType,
+    date: normalizeImportedDate(dateMatch?.[1] ?? dateMatch?.[0]),
+    source: sourceLabel,
+    notes: `Parsed from ${sourceLabel.toLowerCase()}.`,
+    confidence: scoreImportedRow({
+      amount: Math.abs(amount),
+      dateMatch,
+      description,
+      parserStrategy,
+    }),
+  });
+}
+
+function parseCreditCardStatementLine(line, documentType, sourceLabel) {
+  const dateMatch = findDateMatch(line);
+  const amountMatches = findAmountTokens(line);
+  const amountMatch = amountMatches.at(-1);
+
+  if (!amountMatch || looksLikeStatementNoise(line)) {
+    return null;
+  }
+
+  const rawAmount = amountMatch[1].replace(/\$/g, "").replace(/,/g, "");
+  const parsedAmount = Number(rawAmount);
+
+  if (!Number.isFinite(parsedAmount) || Math.abs(parsedAmount) === 0) {
+    return null;
+  }
+
+  const description = cleanImportedDescription(
+    line
+      .replace(dateMatch?.[0] ?? "", "")
+      .replace(/\b\d{1,2}[/-]\d{1,2}(?:[/-]\d{2,4})?\b/, "")
+      .replace(amountMatch[0], "")
+      .replace(/\s+/g, " ")
+      .trim(),
+  );
+
+  return buildImportedTransaction({
+    description,
+    amount: parsedAmount,
+    documentType,
+    dateMatch,
+    sourceLabel,
+    parserStrategy: "credit_card",
+  });
+}
+
+function parseBankStatementLine(line, documentType, sourceLabel) {
+  const dateMatch = findDateMatch(line);
+  const amountMatches = findAmountTokens(line);
+
+  if (!dateMatch || !amountMatches.length || looksLikeStatementNoise(line)) {
+    return null;
+  }
+
+  let selectedAmountMatch = amountMatches.at(-1);
+
+  if (amountMatches.length >= 2) {
+    selectedAmountMatch = amountMatches.at(-2);
+  }
+
+  const parsedAmount = Number(selectedAmountMatch[1].replace(/\$/g, "").replace(/,/g, ""));
+
+  if (!Number.isFinite(parsedAmount) || Math.abs(parsedAmount) === 0) {
+    return null;
+  }
+
+  const description = cleanImportedDescription(
+    line
+      .replace(dateMatch[0], "")
+      .replace(selectedAmountMatch[0], "")
+      .replace(/\b\d{1,2}[/-]\d{1,2}(?:[/-]\d{2,4})?\b/, "")
+      .replace(/\s+/g, " ")
+      .trim(),
+  );
+
+  if (!description || /^\d/.test(description)) {
+    return null;
+  }
+
+  return buildImportedTransaction({
+    description,
+    amount: parsedAmount,
+    documentType,
+    dateMatch,
+    sourceLabel,
+    parserStrategy: "bank_statement",
+  });
+}
+
+function parseGenericImportLine(line, documentType, sourceLabel) {
+  const dateMatch = findDateMatch(line);
+  const amountMatches = findAmountTokens(line);
+  const amountMatch = amountMatches.at(-1);
+
+  if (!amountMatch || looksLikeStatementNoise(line)) {
+    return null;
+  }
+
+  const parsedAmount = Number(amountMatch[1].replace(/\$/g, "").replace(/,/g, ""));
+
+  if (!Number.isFinite(parsedAmount) || Math.abs(parsedAmount) === 0) {
+    return null;
+  }
+
+  const description = cleanImportedDescription(
+    line
+      .replace(dateMatch?.[0] ?? "", "")
+      .replace(amountMatch[0], "")
+      .replace(/\s+/g, " ")
+      .trim(),
+  );
+
+  return buildImportedTransaction({
+    description,
+    amount: parsedAmount,
+    documentType,
+    dateMatch,
+    sourceLabel,
+    parserStrategy: "generic",
+  });
+}
+
+function parseStructuredImportLine(line, documentType, sourceLabel, statementSource) {
+  if (statementSource === "credit-card") {
+    return parseCreditCardStatementLine(line, documentType, sourceLabel) || parseGenericImportLine(line, documentType, sourceLabel);
+  }
+
+  if (statementSource === "bank-statement") {
+    return parseBankStatementLine(line, documentType, sourceLabel) || parseGenericImportLine(line, documentType, sourceLabel);
+  }
+
+  if (statementSource === "generic") {
+    return parseGenericImportLine(line, documentType, sourceLabel);
+  }
+
+  return (
+    parseCreditCardStatementLine(line, documentType, sourceLabel)
+    || parseBankStatementLine(line, documentType, sourceLabel)
+    || parseGenericImportLine(line, documentType, sourceLabel)
+  );
+}
+
+export function parseImportedText(rawText, options = {}, legacySourceLabel = "AI document scan") {
+  const config = typeof options === "string"
+    ? {
+        documentType: options,
+        sourceLabel: legacySourceLabel,
       }
+    : options;
+  const documentType = config.documentType || "mixed";
+  const sourceLabel = config.sourceLabel || "AI document scan";
+  const statementSource =
+    config.statementSource && config.statementSource !== "auto"
+      ? config.statementSource
+      : inferStatementSource(rawText, sourceLabel);
 
-      const rawAmount = amountMatch[1].replace(/\$/g, "").replace(/,/g, "");
-      const parsedAmount = Number(rawAmount);
-      const detectedType =
-        documentType === "income"
-          ? "income"
-          : documentType === "expense"
-            ? "expense"
-            : inferType(line, parsedAmount);
-
-      const description = line
-        .replace(dateMatch?.[0] ?? "", "")
-        .replace(amountMatch[0], "")
-        .replace(/\s+/g, " ")
-        .trim();
-
-      const isoDate = dateMatch
-        ? new Date(dateMatch[0]).toISOString().slice(0, 10)
-        : new Date().toISOString().slice(0, 10);
-
-      return buildTransaction({
-        description: description || "Imported transaction",
-        amount: Math.abs(parsedAmount),
-        type: detectedType,
-        date: isoDate,
-        source: sourceLabel,
-        notes: `Parsed from ${sourceLabel.toLowerCase()}.`,
-        confidence: description ? 0.92 : 0.71,
-      });
-    })
+  return buildImportCandidateLines(rawText, statementSource)
+    .map((line) => parseStructuredImportLine(line, documentType, sourceLabel, statementSource))
     .filter(Boolean);
 }
 

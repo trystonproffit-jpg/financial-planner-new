@@ -79,19 +79,18 @@ function AuthScreen() {
       <main className="mx-auto flex min-h-screen w-full max-w-6xl items-center px-4 py-8 sm:px-6 lg:px-8">
         <section className="grid w-full gap-6 lg:grid-cols-[1.1fr_0.9fr]">
           <div className="hero-panel">
-            <span className="eyebrow">Account setup</span>
+            <span className="eyebrow">Ledgr account</span>
             <h1 className="mt-4 text-4xl font-semibold tracking-tight text-slate-950 sm:text-5xl dark:text-white">
-              Sign in to save budgets, transactions, imports, and personalized financial insights.
+              Sign in to Ledgr to save budgets, transactions, imports, and personalized financial insights.
             </h1>
             <p className="mt-4 max-w-2xl text-base leading-7 text-slate-600 dark:text-slate-300">
-              This foundation adds real user accounts and cloud-backed persistence. Each user gets their own saved planner
-              profile, while uploaded source documents can still be processed and discarded later.
+              Keep your budget and transaction history in one place with a secure account and cloud-backed saving.
             </p>
 
             <div className="mt-8 grid gap-3">
               <div className="insight-row">Account-based login with email and password</div>
-              <div className="insight-row">User-scoped planner data stored in a database</div>
-              <div className="insight-row">Ready to support AI import, budgets, and chat on top of saved data</div>
+              <div className="insight-row">Your Ledgr data saved to your own account</div>
+              <div className="insight-row">Built for imports, budgeting, and coaching in one place</div>
             </div>
           </div>
 
@@ -101,8 +100,8 @@ function AuthScreen() {
                 <h2 className="panel-title">{mode === "sign-in" ? "Welcome back" : "Create your account"}</h2>
                 <p className="panel-subtitle">
                   {mode === "sign-in"
-                    ? "Sign in to continue managing your financial planner."
-                    : "Start with a secure account so your planner data persists across sessions."}
+                    ? "Sign in to continue using Ledgr."
+                    : "Create an account to save your data and pick up where you left off."}
                 </p>
               </div>
             </div>

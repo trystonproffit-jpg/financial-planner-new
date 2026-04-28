@@ -1,57 +1,70 @@
-function HeroSection({ darkMode, onToggleDarkMode, onSignOut, plannerHealthTone, saveStatus, userEmail }) {
+import { Link } from "react-router-dom";
+import { currencyFormatter, percentFormatter } from "../lib/finance";
+import LedgrMark from "./LedgrMark";
+
+function HeroSection({ budgetTarget, financials, userEmail }) {
   return (
     <section className="hero-panel">
       <div className="hero-grid">
         <div className="max-w-3xl space-y-4">
-          <span className="eyebrow">Financial planning workspace</span>
-          <div className="hero-kicker">Budget clarity with saved accounts, smart imports, and practical coaching.</div>
+          <LedgrMark className="hero-brand" />
+          <div className="hero-kicker">Clearer money tracking, cleaner imports, and smarter next steps.</div>
           <h1 className="text-4xl font-semibold tracking-tight text-slate-950 sm:text-5xl dark:text-white">
-            Track cash flow, surface spending trends, and review AI-scanned documents in one place.
+            A clearer way to track spending, income, and progress in one place.
           </h1>
           <p className="max-w-2xl text-base leading-7 text-slate-600 dark:text-slate-300">
-            This version focuses on ease of use: fast manual entry, visual planning tools, and an AI intake panel
-            that turns pasted receipt or bank statement text into categorized transactions you can approve.
+            Ledgr gives you a quick financial snapshot up front, then makes it easy to import activity, review history, and get guidance when you need it.
           </p>
+
+          <div className="hero-actions">
+            <Link className="primary-button" to="/import">Import activity</Link>
+            <Link className="secondary-button" to="/transactions">View history</Link>
+            <Link className="ghost-button" to="/chat">Ask Ledgr Coach</Link>
+          </div>
 
           <div className="hero-points">
             <div className="hero-point">
-              <span className="hero-point-label">Track</span>
-              <strong>Income, expenses, and recurring activity in one view</strong>
+              <span className="hero-point-label">Snapshot</span>
+              <strong>See your income, expenses, balance, and budget progress at a glance</strong>
             </div>
             <div className="hero-point">
-              <span className="hero-point-label">Review</span>
-              <strong>Approve AI-imported transactions before anything gets saved</strong>
+              <span className="hero-point-label">Import</span>
+              <strong>Bring in statements and receipts, then review every result before saving</strong>
             </div>
             <div className="hero-point">
-              <span className="hero-point-label">Improve</span>
-              <strong>Use coaching-style insights to refine monthly budgets over time</strong>
+              <span className="hero-point-label">Coach</span>
+              <strong>Get practical guidance grounded in your actual saved financial data</strong>
             </div>
           </div>
         </div>
 
         <div className="hero-side">
-          <div className="hero-account-block">
-            <div className="account-chip">
-              <span>{userEmail}</span>
-              <span className={`save-indicator ${saveStatus}`}>{saveStatus === "saving" ? "Saving" : saveStatus === "error" ? "Save issue" : "Synced"}</span>
-            </div>
-            <div className={`health-pill health-pill-${plannerHealthTone}`}>
-              {plannerHealthTone === "on-track" && "Planner health: On track"}
-              {plannerHealthTone === "watchlist" && "Planner health: Watch expenses"}
-              {plannerHealthTone === "needs-attention" && "Planner health: Balance is negative"}
+          <div className="hero-control-card hero-status-card">
+            <span className="field-label">This month's snapshot</span>
+            <strong className="hero-status-value">{financials.balance >= 0 ? "On track" : "Needs review"}</strong>
+            <p className="panel-subtitle mt-3">
+              {financials.balance >= 0
+                ? `${currencyFormatter(financials.balance)} remains after recorded expenses.`
+                : `${currencyFormatter(financials.balance)} below break-even right now.`}
+            </p>
+            <div className="hero-status-grid">
+              <div>
+                <span className="field-label">Budget used</span>
+                <strong>{percentFormatter(financials.budgetUsed)}</strong>
+              </div>
+              <div>
+                <span className="field-label">Target</span>
+                <strong>{currencyFormatter(budgetTarget)}</strong>
+              </div>
             </div>
           </div>
 
           <div className="hero-control-card">
-            <span className="field-label">Workspace controls</span>
-            <div className="hero-actions">
-              <button type="button" onClick={onToggleDarkMode} className="secondary-button">
-                {darkMode ? "Switch to light mode" : "Switch to dark mode"}
-              </button>
-              <button type="button" onClick={onSignOut} className="ghost-button">
-                Sign out
-              </button>
-            </div>
+            <span className="field-label">Current account</span>
+            <strong>{userEmail}</strong>
+            <p className="panel-subtitle mt-3">
+              Your Ledgr data stays connected to this account so it is ready whenever you sign in.
+            </p>
           </div>
         </div>
       </div>

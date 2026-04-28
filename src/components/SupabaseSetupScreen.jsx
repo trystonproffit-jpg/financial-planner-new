@@ -8,10 +8,10 @@ function SupabaseSetupScreen() {
         <section className="hero-panel w-full">
           <span className="eyebrow">Setup required</span>
           <h1 className="mt-4 text-4xl font-semibold tracking-tight text-slate-950 sm:text-5xl dark:text-white">
-            Connect Supabase to enable login and persistent planner data.
+            Connect Supabase to enable Ledgr login and saved data.
           </h1>
           <p className="mt-4 max-w-3xl text-base leading-7 text-slate-600 dark:text-slate-300">
-            This app now expects a Supabase project for authentication and saved user data. Add your project URL and anon
+            Ledgr uses a Supabase project for authentication and saved user data. Add your project URL and anon
             key to a local environment file, then run the SQL schema included in the repo.
           </p>
 
@@ -25,7 +25,7 @@ VITE_SUPABASE_ANON_KEY=your-anon-key`}</pre>
             <div className="panel">
               <h2 className="panel-title">2. Run the database schema</h2>
               <p className="panel-subtitle">
-                Use the SQL in <code>supabase/schema.sql</code> to create the planner profile table and row-level security
+                Use the SQL in <code>supabase/schema.sql</code> to create the Ledgr profile table and row-level security
                 policies.
               </p>
             </div>

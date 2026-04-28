@@ -1,8 +1,11 @@
 import { currencyFormatter } from "../lib/finance";
+import ImportHistoryList from "./ImportHistoryList";
 
 function AiImportPanel({
+  activeImportSessionId,
   approvedImportCount,
   categoryOptions,
+  importHistory,
   importState,
   importStatus,
   parsedTransactions,
@@ -12,10 +15,12 @@ function AiImportPanel({
   onFilesSelected,
   onImport,
   onImportStateChange,
+  onRemoveAllParsedTransactions,
   onParsedTransactionApproval,
   onParsedTransactionChange,
   onRemoveDocument,
   onRemoveParsedTransaction,
+  onRestoreSession,
 }) {
   return (
     <article className="panel">
@@ -23,13 +28,13 @@ function AiImportPanel({
         <div>
           <h2 className="panel-title">AI receipt and statement intake</h2>
           <p className="panel-subtitle">
-            Upload statement files or paste extracted text, review every line item, then import only the entries you approve.
+            Upload a statement or receipt, review the results, and save only the transactions you want to keep.
           </p>
         </div>
       </div>
 
       <div className="import-panel-grid">
-        <div className="grid gap-4 sm:grid-cols-[180px_1fr]">
+        <div className="grid gap-4 md:grid-cols-[180px_180px_1fr]">
           <label className="field">
             <span className="field-label">Document type</span>
             <select
@@ -43,11 +48,25 @@ function AiImportPanel({
             </select>
           </label>
 
+          <label className="field">
+            <span className="field-label">Statement source</span>
+            <select
+              className="field-input"
+              value={importState.statementSource}
+              onChange={(event) => onImportStateChange("statementSource", event.target.value)}
+            >
+              <option value="auto">Auto-detect</option>
+              <option value="bank-statement">Bank statement</option>
+              <option value="credit-card">Credit card statement</option>
+              <option value="generic">Generic text</option>
+            </select>
+          </label>
+
           <div className="insight-box">
             <span className="field-label">How it works</span>
             <p>
-              The intake flow stays free first: text, CSV, searchable PDFs, and images are analyzed in-browser, and anything
-              that would need a paid fallback gets stopped behind a warning before you continue.
+              Most files can be analyzed directly in your browser. Auto-detect works for most uploads, and you can choose a statement
+              type yourself if the results need a little help.
             </p>
           </div>
         </div>
@@ -57,7 +76,7 @@ function AiImportPanel({
             <span className="field-label">Statement files</span>
             <div className="upload-dropzone-inner">
               <strong>Drop files here or click to choose</strong>
-              <p>Free-supported: `.txt`, `.csv`, searchable `.pdf`, and common images. Scanned PDFs may trigger a cost warning.</p>
+              <p>Supported for free: `.txt`, `.csv`, searchable `.pdf`, and common image files. Scanned PDFs may show a cost warning.</p>
             </div>
             <input
               className="sr-only"
@@ -84,7 +103,7 @@ function AiImportPanel({
                 </div>
               ))
             ) : (
-              <div className="empty-state">No files queued yet. You can still analyze pasted OCR text below.</div>
+              <div className="empty-state">No files added yet. You can still paste text below and analyze it.</div>
             )}
           </div>
 
@@ -94,7 +113,7 @@ function AiImportPanel({
               className="field-input min-h-44"
               value={importState.rawText}
               onChange={(event) => onImportStateChange("rawText", event.target.value)}
-              placeholder="Paste OCR or statement lines here"
+              placeholder="Paste statement text or OCR results here"
             />
           </label>
 
@@ -117,6 +136,14 @@ function AiImportPanel({
               <button type="button" className="secondary-button" onClick={onApproveAll} disabled={!parsedTransactions.length}>
                 Approve all
               </button>
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={onRemoveAllParsedTransactions}
+                disabled={!parsedTransactions.length}
+              >
+                Remove all
+              </button>
               <button type="button" className="secondary-button" onClick={onImport} disabled={!approvedImportCount}>
                 Import approved items
               </button>
@@ -127,7 +154,10 @@ function AiImportPanel({
         <div className="preview-stack">
           {parsedTransactions.length ? (
             parsedTransactions.map((entry) => (
-              <div key={entry.id} className={`preview-card preview-card-editor ${entry.duplicate ? "duplicate" : ""}`}>
+              <div
+                key={entry.id}
+                className={`preview-card preview-card-editor ${entry.duplicate ? "duplicate" : ""} ${entry.confidence < 0.7 ? "low-confidence" : ""}`}
+              >
                 <div className="preview-editor-header">
                   <div>
                     <div className="preview-title-row">
@@ -136,11 +166,15 @@ function AiImportPanel({
                         {entry.type} | {Math.round(entry.confidence * 100)}% confidence
                       </span>
                       {entry.duplicate ? <span className="budget-health over">Duplicate match</span> : null}
+                      {entry.confidence < 0.7 ? <span className="budget-health watch">Needs review</span> : null}
                     </div>
                     <p className="preview-meta">
                       {entry.source} | {entry.date}
                     </p>
                     {entry.duplicateReason ? <p className="duplicate-note">{entry.duplicateReason}</p> : null}
+                    {entry.confidence < 0.7 ? (
+                      <p className="confidence-note">This line looks incomplete or ambiguous. Review the description, date, and amount before importing.</p>
+                    ) : null}
                   </div>
 
                   <label className="checkbox-row">
@@ -235,9 +269,23 @@ function AiImportPanel({
             ))
           ) : (
             <div className="empty-state">
-              Upload statement text or files, then run analysis to generate an editable approval queue.
+              Add files or paste text, then run analysis to build a review list you can edit before saving.
             </div>
           )}
+        </div>
+
+        <div className="import-history-panel">
+          <div className="panel-header">
+            <div>
+              <h3 className="panel-title">Recent import sessions</h3>
+              <p className="panel-subtitle">
+                Reopen an earlier review to see what was approved, skipped, or imported.
+                {activeImportSessionId ? " This review is already saved to your history." : ""}
+              </p>
+            </div>
+          </div>
+
+          <ImportHistoryList sessions={importHistory} onRestoreSession={onRestoreSession} />
         </div>
       </div>
     </article>
